@@ -232,7 +232,7 @@ nav{background:rgba(10,30,18,0.92);border-bottom:2px solid var(--gold);padding:0
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getAuth, GoogleAuthProvider, signInWithRedirect, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
 // ── Firebase Config ──
 const firebaseConfig = {
@@ -305,21 +305,31 @@ async function loadRecords() {
 
 // ── Seed: import historical data once ──
 async function seedIfEmpty() {
-  const snap = await getDocs(collection(db,'records'));
-  if(snap.size > 0) { await loadRecords(); return; }
-  toast('首次載入，匯入歷史資料中…');
-  const batch = [];
-  for(const r of SEED){
-    batch.push(addDoc(collection(db,'records'),{...r, status:'approved', createdAt: new Date().toISOString()}));
+  try {
+    const snap = await getDocs(collection(db,'records'));
+    if(snap.size > 0) { await loadRecords(); return; }
+    toast('首次載入，匯入歷史資料中…');
+    for(let i=0;i<SEED.length;i+=10){
+      const chunk=SEED.slice(i,i+10);
+      await Promise.all(chunk.map(r=>addDoc(collection(db,'records'),{...r,status:'approved',createdAt:new Date().toISOString()})));
+    }
+    toast('✅ 歷史資料匯入完成！');
+    await loadRecords();
+  } catch(e) {
+    console.error('Seed error:',e);
+    hideLoading();
+    toast('連線失敗：'+e.message);
   }
-  await Promise.all(batch);
-  toast('✅ 歷史資料匯入完成！');
-  await loadRecords();
 }
 
 function hideLoading(){document.getElementById('loadingOverlay').style.display='none';}
 
 // ── Auth ──
+// Handle redirect result first (Google login callback)
+getRedirectResult(auth).then(result => {
+  if(result?.user) toast('✅ 登入成功');
+}).catch(()=>{});
+
 onAuthStateChanged(auth, user => {
   currentUser = user;
   const btn = document.getElementById('loginBtn');
