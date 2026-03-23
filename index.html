@@ -16,9 +16,10 @@ nav{background:rgba(10,30,18,0.92);border-bottom:2px solid var(--gold);padding:0
 .nav-tab{padding:1.1rem 0.9rem;cursor:pointer;font-size:0.84rem;color:rgba(245,237,214,0.6);border-bottom:3px solid transparent;transition:all 0.2s;white-space:nowrap;flex-shrink:0;}
 .nav-tab:hover{color:var(--cream);}
 .nav-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
-.nav-admin{margin-left:auto;flex-shrink:0;padding-left:0.5rem;}
+.nav-admin{margin-left:auto;flex-shrink:0;padding-left:0.5rem;display:flex;align-items:center;gap:0.6rem;}
+.admin-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--gold);display:none;}
 .btn-login{background:transparent;border:1px solid var(--gold);color:var(--gold);padding:0.4rem 0.9rem;border-radius:3px;cursor:pointer;font-family:'Noto Serif TC',serif;font-size:0.8rem;transition:all 0.2s;white-space:nowrap;}
-.btn-login:hover,.btn-login.active{background:var(--gold);color:var(--ink);}
+.btn-login:hover{background:var(--gold);color:var(--ink);}
 .page{display:none;padding:2rem;max-width:1100px;margin:0 auto;}
 .page.active{display:block;}
 .section-title{font-family:'Playfair Display',serif;font-size:1.75rem;color:var(--gold);margin-bottom:0.3rem;}
@@ -37,7 +38,7 @@ nav{background:rgba(10,30,18,0.92);border-bottom:2px solid var(--gold);padding:0
 .player-rank{font-size:1.05rem;width:2rem;text-align:center;}
 .player-name{flex:1;font-size:0.93rem;}
 .player-score{font-size:1rem;font-weight:700;min-width:80px;text-align:right;}
-.pos{color:#5dba7d;} .neg{color:var(--red-light);}
+.pos{color:#5dba7d;}.neg{color:var(--red-light);}
 .player-tsumo{font-size:0.78rem;color:rgba(245,237,214,0.4);min-width:70px;text-align:right;}
 .year-kings{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;}
 .lb-controls{display:flex;gap:0.7rem;margin-bottom:1.5rem;flex-wrap:wrap;}
@@ -93,19 +94,27 @@ nav{background:rgba(10,30,18,0.92);border-bottom:2px solid var(--gold);padding:0
 .pending-actions{display:flex;gap:0.5rem;flex-shrink:0;}
 .empty-state{text-align:center;padding:3rem;color:rgba(245,237,214,0.32);font-size:0.88rem;}
 .empty-icon{font-size:2.5rem;margin-bottom:0.8rem;}
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;}
-.modal-overlay.show{display:flex;}
-.modal{background:#0e2a1a;border:1px solid var(--gold);border-radius:8px;padding:2rem;width:370px;max-width:92vw;}
-.modal-title{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.25rem;margin-bottom:1.4rem;}
-.modal-actions{display:flex;gap:0.8rem;justify-content:flex-end;margin-top:1.4rem;}
+.loading-overlay{position:fixed;inset:0;background:rgba(10,30,18,0.85);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;}
+.loading-spinner{width:40px;height:40px;border:3px solid rgba(201,168,76,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{color:var(--gold);font-size:0.9rem;}
 .tile-deco{position:fixed;bottom:2rem;right:2rem;opacity:0.055;font-size:5rem;pointer-events:none;user-select:none;letter-spacing:-0.1em;}
 .toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(100px);background:var(--gold);color:var(--ink);padding:0.65rem 1.4rem;border-radius:4px;font-size:0.88rem;font-weight:700;transition:transform 0.3s;z-index:300;white-space:nowrap;}
 .toast.show{transform:translateX(-50%) translateY(0);}
 .tsumo-note{font-size:0.73rem;color:rgba(245,237,214,0.33);font-style:italic;margin-top:0.7rem;padding-left:0.3rem;}
+.status-badge{display:inline-block;padding:0.15rem 0.5rem;border-radius:3px;font-size:0.72rem;margin-left:0.5rem;}
+.badge-pending{background:rgba(201,168,76,0.2);color:var(--gold);border:1px solid rgba(201,168,76,0.4);}
 @media(max-width:750px){.dash-grid{grid-template-columns:1fr 1fr;}.year-kings{grid-template-columns:1fr;}.player-input-row{grid-template-columns:1fr 1fr;}.session-detail-grid{grid-template-columns:1fr;}.nav-brand{font-size:1rem;padding-right:0.7rem;}}
 </style>
 </head>
 <body>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">連線中…</div>
+</div>
+
 <nav>
   <div class="nav-brand">🀄 麻將戰績簿</div>
   <div class="nav-tabs">
@@ -113,11 +122,15 @@ nav{background:rgba(10,30,18,0.92);border-bottom:2px solid var(--gold);padding:0
     <div class="nav-tab" onclick="showPage('leaderboard',this)">排行榜</div>
     <div class="nav-tab" onclick="showPage('history',this)">場次記錄</div>
     <div class="nav-tab" onclick="showPage('submit',this)">新增戰績</div>
-    <div class="nav-tab" onclick="showPage('admin',this)">管理員</div>
+    <div class="nav-tab" id="adminTab" onclick="showPage('admin',this)" style="display:none">管理員</div>
   </div>
-  <div class="nav-admin"><button class="btn-login" id="adminLoginBtn" onclick="toggleAdminModal()">登入</button></div>
+  <div class="nav-admin">
+    <img class="admin-avatar" id="adminAvatar">
+    <button class="btn-login" id="loginBtn" onclick="handleAuth()">Google 登入</button>
+  </div>
 </nav>
 
+<!-- DASHBOARD -->
 <div class="page active" id="page-dashboard">
   <div class="section-title">總覽</div>
   <div class="section-subtitle">DASHBOARD · 戰況一覽</div>
@@ -134,6 +147,7 @@ nav{background:rgba(10,30,18,0.92);border-bottom:2px solid var(--gold);padding:0
   </div>
 </div>
 
+<!-- LEADERBOARD -->
 <div class="page" id="page-leaderboard">
   <div class="section-title">排行榜</div>
   <div class="section-subtitle">LEADERBOARD · 英雄榜</div>
@@ -164,6 +178,7 @@ nav{background:rgba(10,30,18,0.92);border-bottom:2px solid var(--gold);padding:0
   <div class="tsumo-note">＊自摸次數僅 2026 年起有記錄</div>
 </div>
 
+<!-- HISTORY -->
 <div class="page" id="page-history">
   <div class="section-title">場次記錄</div>
   <div class="section-subtitle">HISTORY · 每場詳情（共 <span id="histCount">—</span> 場）</div>
@@ -180,10 +195,11 @@ nav{background:rgba(10,30,18,0.92);border-bottom:2px solid var(--gold);padding:0
   <div id="historyList"></div>
 </div>
 
+<!-- SUBMIT -->
 <div class="page" id="page-submit">
   <div class="section-title">新增戰績</div>
   <div class="section-subtitle">RECORD · 填寫場次資料</div>
-  <div class="notice">填寫後送出，待管理員審核後公開顯示。</div>
+  <div class="notice">填寫後送出，待管理員（<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6b011f1f125a59585f2b0c060a020745080406">[email&#160;protected]</a>）審核後公開顯示。</div>
   <div class="card">
     <div class="form-group" style="max-width:220px;margin-bottom:0.5rem"><label class="form-label">日期</label><input class="form-input" type="date" id="f-date"></div>
     <div style="margin:1.5rem 0 1rem;font-size:0.88rem;color:var(--gold)">四位參賽者</div>
@@ -195,64 +211,61 @@ nav{background:rgba(10,30,18,0.92);border-bottom:2px solid var(--gold);padding:0
   </div>
 </div>
 
+<!-- ADMIN -->
 <div class="page" id="page-admin">
   <div class="section-title">管理員區</div>
   <div class="section-subtitle">ADMIN · 審核戰績</div>
-  <div id="adminLoginPrompt" class="card" style="max-width:360px"><div style="font-size:0.93rem;color:rgba(245,237,214,0.7);margin-bottom:1.2rem;">請先以管理員身份登入</div><button class="btn-primary" onclick="toggleAdminModal()">登入</button></div>
-  <div id="adminPanel" style="display:none">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
-      <div style="font-size:0.88rem;color:rgba(245,237,214,0.6)">管理員：<span style="color:var(--gold)" id="adminEmail"></span></div>
-      <button class="btn-secondary" onclick="adminLogout()">登出</button>
-    </div>
-    <div style="font-size:0.88rem;color:var(--gold);letter-spacing:0.05em;margin-bottom:1rem;">⏳ 待審核 (<span id="pendingCount">0</span>)</div>
-    <div id="pendingList"></div>
-    <div style="font-size:0.88rem;color:var(--gold);letter-spacing:0.05em;margin:2rem 0 1rem;">✅ 已審核 — 最近 10 場</div>
-    <div id="approvedManage"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+    <div style="font-size:0.88rem;color:rgba(245,237,214,0.6)">登入身份：<span style="color:var(--gold)" id="adminEmail"></span></div>
+    <button class="btn-secondary" onclick="handleAuth()">登出</button>
   </div>
-</div>
-
-<div class="modal-overlay" id="adminModal">
-  <div class="modal">
-    <div class="modal-title">管理員登入</div>
-    <div style="font-size:0.8rem;color:rgba(245,237,214,0.4);margin-bottom:1.2rem;">Demo 模式：輸入任意 Email 即可登入</div>
-    <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="adminEmailInput" type="email" value="admin@gmail.com"></div>
-    <div class="form-group" style="margin-top:0.8rem"><label class="form-label">密碼</label><input class="form-input" type="password" value="demo"></div>
-    <div class="modal-actions"><button class="btn-secondary" onclick="closeModal()">取消</button><button class="btn-primary" onclick="adminLogin()">登入</button></div>
-  </div>
+  <div style="font-size:0.88rem;color:var(--gold);letter-spacing:0.05em;margin-bottom:1rem;">⏳ 待審核 (<span id="pendingCount">0</span>)</div>
+  <div id="pendingList"></div>
+  <div style="font-size:0.88rem;color:var(--gold);letter-spacing:0.05em;margin:2rem 0 1rem;">✅ 已審核 — 最近 10 場</div>
+  <div id="approvedManage"></div>
 </div>
 
 <div class="toast" id="toast"></div>
 <div class="tile-deco">🀇🀙🀡🀄</div>
 
-<script>
-const SEED_DATA=[{"id":1,"date":"2024-01-27","status":"approved","players":[{"n":"楊湛華","s":1100,"t":null},{"n":"林翔","s":-860,"t":null},{"n":"陳昀瑋","s":120,"t":null},{"n":"其他外人","s":-360,"t":null}]},{"id":2,"date":"2024-02-08","status":"approved","players":[{"n":"楊湛華","s":350,"t":null},{"n":"林翔","s":120,"t":null},{"n":"楊皓淵","s":-430,"t":null},{"n":"陳昀瑋","s":-40,"t":null}]},{"id":3,"date":"2024-02-08","status":"approved","players":[{"n":"楊湛華","s":-30,"t":null},{"n":"林翔","s":-220,"t":null},{"n":"楊皓淵","s":50,"t":null},{"n":"其他外人","s":200,"t":null}]},{"id":4,"date":"2024-02-13","status":"approved","players":[{"n":"楊湛華","s":-680,"t":null},{"n":"吳致亨","s":1130,"t":null},{"n":"陳昀瑋","s":-170,"t":null},{"n":"其他外人","s":-280,"t":null}]},{"id":5,"date":"2024-02-19","status":"approved","players":[{"n":"楊湛華","s":-360,"t":null},{"n":"林翔","s":550,"t":null},{"n":"楊皓淵","s":-160,"t":null},{"n":"陳昀瑋","s":-30,"t":null}]},{"id":6,"date":"2024-03-24","status":"approved","players":[{"n":"楊湛華","s":-360,"t":null},{"n":"林翔","s":160,"t":null},{"n":"陳廷安","s":570,"t":null},{"n":"陳昀瑋","s":-370,"t":null}]},{"id":7,"date":"2024-04-28","status":"approved","players":[{"n":"楊湛華","s":-40,"t":null},{"n":"林翔","s":180,"t":null},{"n":"陳威宇","s":-210,"t":null},{"n":"陳昀瑋","s":70,"t":null}]},{"id":8,"date":"2024-06-08","status":"approved","players":[{"n":"楊湛華","s":390,"t":null},{"n":"林翔","s":-270,"t":null},{"n":"陳廷安","s":100,"t":null},{"n":"陳昀瑋","s":-220,"t":null}]},{"id":9,"date":"2024-06-16","status":"approved","players":[{"n":"楊湛華","s":0,"t":null},{"n":"林翔","s":-270,"t":null},{"n":"陳廷安","s":250,"t":null},{"n":"陳昀瑋","s":20,"t":null}]},{"id":10,"date":"2024-06-22","status":"approved","players":[{"n":"楊湛華","s":80,"t":null},{"n":"林翔","s":-20,"t":null},{"n":"陳廷安","s":-210,"t":null},{"n":"劉其鷹","s":150,"t":null}]},{"id":11,"date":"2024-06-28","status":"approved","players":[{"n":"楊湛華","s":300,"t":null},{"n":"林翔","s":-320,"t":null},{"n":"吳致亨","s":0,"t":null},{"n":"劉其鷹","s":20,"t":null}]},{"id":12,"date":"2024-08-17","status":"approved","players":[{"n":"楊湛華","s":0,"t":null},{"n":"林翔","s":-230,"t":null},{"n":"陳昀瑋","s":260,"t":null},{"n":"其他外人","s":-30,"t":null}]},{"id":13,"date":"2024-09-02","status":"approved","players":[{"n":"楊湛華","s":-40,"t":null},{"n":"林翔","s":-160,"t":null},{"n":"陳昀瑋","s":140,"t":null},{"n":"其他外人","s":60,"t":null}]},{"id":14,"date":"2024-09-13","status":"approved","players":[{"n":"楊湛華","s":120,"t":null},{"n":"陳廷安","s":380,"t":null},{"n":"陳昀瑋","s":-100,"t":null},{"n":"傅柏文","s":-400,"t":null}]},{"id":15,"date":"2024-09-29","status":"approved","players":[{"n":"楊湛華","s":-280,"t":null},{"n":"陳廷安","s":380,"t":null},{"n":"陳昀瑋","s":-100,"t":null},{"n":"其他外人","s":0,"t":null}]},{"id":16,"date":"2024-10-03","status":"approved","players":[{"n":"楊湛華","s":-480,"t":null},{"n":"林翔","s":-290,"t":null},{"n":"吳致亨","s":910,"t":null},{"n":"陳昀瑋","s":-140,"t":null}]},{"id":17,"date":"2024-10-12","status":"approved","players":[{"n":"林翔","s":230,"t":null},{"n":"陳廷安","s":-250,"t":null},{"n":"吳致亨","s":270,"t":null},{"n":"陳昀瑋","s":-250,"t":null}]},{"id":18,"date":"2024-11-07","status":"approved","players":[{"n":"楊湛華","s":80,"t":null},{"n":"林翔","s":-130,"t":null},{"n":"陳昀瑋","s":150,"t":null},{"n":"陳奕廷","s":-100,"t":null}]},{"id":19,"date":"2024-11-09","status":"approved","players":[{"n":"林翔","s":-280,"t":null},{"n":"陳廷安","s":1000,"t":null},{"n":"吳致亨","s":-350,"t":null},{"n":"劉其鷹","s":60,"t":null},{"n":"陳昀瑋","s":-10,"t":null}]},{"id":20,"date":"2024-11-10","status":"approved","players":[{"n":"楊湛華","s":-180,"t":null},{"n":"林翔","s":130,"t":null}]},{"id":21,"date":"2024-11-24","status":"approved","players":[{"n":"楊湛華","s":-50,"t":null},{"n":"林翔","s":450,"t":null},{"n":"陳昀瑋","s":-220,"t":null},{"n":"其他外人","s":180,"t":null}]},{"id":22,"date":"2024-12-08","status":"approved","players":[{"n":"林翔","s":-180,"t":null},{"n":"吳致亨","s":330,"t":null},{"n":"劉其鷹","s":-140,"t":null},{"n":"陳昀瑋","s":-10,"t":null}]},{"id":23,"date":"2024-12-22","status":"approved","players":[{"n":"楊湛華","s":-90,"t":null},{"n":"林翔","s":-30,"t":null},{"n":"吳致亨","s":-140,"t":null},{"n":"陳昀瑋","s":260,"t":null}]},{"id":24,"date":"2025-01-06","status":"approved","players":[{"n":"楊湛華","s":440,"t":null},{"n":"吳致亨","s":-160,"t":null},{"n":"陳昀瑋","s":-190,"t":null},{"n":"朱曼寧","s":-90,"t":null}]},{"id":25,"date":"2025-01-11","status":"approved","players":[{"n":"楊湛華","s":-400,"t":null},{"n":"林翔","s":110,"t":null},{"n":"陳昀瑋","s":70,"t":null},{"n":"朱曼寧","s":220,"t":null}]},{"id":26,"date":"2025-01-18","status":"approved","players":[{"n":"林翔","s":-80,"t":null},{"n":"陳廷安","s":60,"t":null},{"n":"吳致亨","s":-80,"t":null},{"n":"陳昀瑋","s":100,"t":null}]},{"id":27,"date":"2025-01-21","status":"approved","players":[{"n":"楊湛華","s":240,"t":null},{"n":"林翔","s":-380,"t":null},{"n":"吳致亨","s":350,"t":null},{"n":"楊皓淵","s":-70,"t":null},{"n":"陳昀瑋","s":-140,"t":null}]},{"id":28,"date":"2025-02-02","status":"approved","players":[{"n":"楊湛華","s":-380,"t":null},{"n":"吳致亨","s":280,"t":null},{"n":"陳昀瑋","s":-650,"t":null},{"n":"朱曼寧","s":750,"t":null}]},{"id":29,"date":"2025-04-20","status":"approved","players":[{"n":"楊湛華","s":350,"t":null},{"n":"林翔","s":410,"t":null},{"n":"吳致亨","s":-60,"t":null},{"n":"傅柏文","s":-670,"t":null},{"n":"朱曼寧","s":-30,"t":null}]},{"id":30,"date":"2025-04-27","status":"approved","players":[{"n":"楊湛華","s":80,"t":null},{"n":"陳昀瑋","s":-380,"t":null},{"n":"朱曼寧","s":100,"t":null},{"n":"其他人","s":200,"t":null}]},{"id":31,"date":"2025-04-27","status":"approved","players":[{"n":"楊湛華","s":40,"t":null},{"n":"林翔","s":50,"t":null},{"n":"陳昀瑋","s":-70,"t":null},{"n":"朱曼寧","s":-20,"t":null}]},{"id":32,"date":"2025-04-28","status":"approved","players":[{"n":"林翔","s":30,"t":null},{"n":"陳廷安","s":-40,"t":null},{"n":"陳昀瑋","s":-130,"t":null},{"n":"傅柏文","s":140,"t":null}]},{"id":33,"date":"2025-05-02","status":"approved","players":[{"n":"林翔","s":290,"t":null},{"n":"陳廷安","s":-10,"t":null},{"n":"吳致亨","s":-470,"t":null},{"n":"陳昀瑋","s":190,"t":null}]},{"id":34,"date":"2025-05-09","status":"approved","players":[{"n":"楊湛華","s":580,"t":null},{"n":"林翔","s":-190,"t":null},{"n":"陳昀瑋","s":-940,"t":null},{"n":"朱曼寧","s":550,"t":null}]},{"id":35,"date":"2025-05-30","status":"approved","players":[{"n":"楊湛華","s":-20,"t":null},{"n":"陳廷安","s":-1540,"t":null},{"n":"吳致亨","s":-1020,"t":null},{"n":"朱曼寧","s":2580,"t":null}]},{"id":36,"date":"2025-07-05","status":"approved","players":[{"n":"楊湛華","s":500,"t":null},{"n":"楊皓淵","s":-270,"t":null},{"n":"陳昀瑋","s":-160,"t":null}]},{"id":37,"date":"2025-07-06","status":"approved","players":[{"n":"楊湛華","s":130,"t":null},{"n":"林翔","s":-70,"t":null},{"n":"陳廷安","s":-80,"t":null},{"n":"陳昀瑋","s":0,"t":null}]},{"id":38,"date":"2025-08-03","status":"approved","players":[{"n":"楊湛華","s":640,"t":null},{"n":"吳致亨","s":-370,"t":null},{"n":"陳昀瑋","s":-730,"t":null},{"n":"朱曼寧","s":460,"t":null}]},{"id":39,"date":"2025-08-09","status":"approved","players":[{"n":"楊湛華","s":-130,"t":null},{"n":"林翔","s":380,"t":null},{"n":"陳廷安","s":-100,"t":null},{"n":"陳昀瑋","s":-150,"t":null}]},{"id":40,"date":"2025-09-13","status":"approved","players":[{"n":"楊湛華","s":760,"t":null},{"n":"陳昀瑋","s":30,"t":null},{"n":"朱曼寧","s":-980,"t":null},{"n":"廖冠茗","s":190,"t":null}]},{"id":41,"date":"2025-09-28","status":"approved","players":[{"n":"楊湛華","s":-790,"t":null},{"n":"陳昀瑋","s":160,"t":null},{"n":"朱曼寧","s":430,"t":null},{"n":"其他人","s":200,"t":null}]},{"id":42,"date":"2025-09-29","status":"approved","players":[{"n":"楊湛華","s":-30,"t":null},{"n":"林翔","s":-410,"t":null},{"n":"陳昀瑋","s":10,"t":null},{"n":"其他人","s":430,"t":null}]},{"id":43,"date":"2025-10-12","status":"approved","players":[{"n":"楊湛華","s":40,"t":null},{"n":"林翔","s":-180,"t":null},{"n":"陳廷安","s":40,"t":null},{"n":"陳昀瑋","s":100,"t":null}]},{"id":44,"date":"2025-11-08","status":"approved","players":[{"n":"楊湛華","s":-290,"t":null},{"n":"林翔","s":160,"t":null},{"n":"吳致亨","s":440,"t":null},{"n":"陳昀瑋","s":-310,"t":null}]},{"id":45,"date":"2025-11-14","status":"approved","players":[{"n":"楊湛華","s":500,"t":null},{"n":"陳昀瑋","s":340,"t":null},{"n":"朱曼寧","s":-790,"t":null},{"n":"其他人","s":-50,"t":null}]},{"id":46,"date":"2025-11-21","status":"approved","players":[{"n":"楊湛華","s":-140,"t":null},{"n":"陳昀瑋","s":250,"t":null},{"n":"倪周恩","s":390,"t":null},{"n":"其他人","s":-500,"t":null}]},{"id":47,"date":"2025-12-06","status":"approved","players":[{"n":"楊湛華","s":980,"t":null},{"n":"吳致亨","s":-570,"t":null},{"n":"陳昀瑋","s":530,"t":null},{"n":"朱曼寧","s":-940,"t":null}]},{"id":48,"date":"2025-12-14","status":"approved","players":[{"n":"楊湛華","s":630,"t":null},{"n":"陳昀瑋","s":-1320,"t":null},{"n":"朱曼寧","s":1130,"t":null},{"n":"其他人","s":-440,"t":null}]},{"id":49,"date":"2025-12-26","status":"approved","players":[{"n":"楊湛華","s":-70,"t":null},{"n":"陳昀瑋","s":280,"t":null},{"n":"朱曼寧","s":-260,"t":null},{"n":"倪周恩","s":50,"t":null}]},{"id":50,"date":"2025-12-26","status":"approved","players":[{"n":"楊湛華","s":460,"t":null},{"n":"陳昀瑋","s":-210,"t":null},{"n":"朱曼寧","s":-210,"t":null},{"n":"倪周恩","s":-40,"t":null}]},{"id":51,"date":"2026-01-03","status":"approved","players":[{"n":"楊湛華","s":960,"t":5},{"n":"陳昀瑋","s":-1070,"t":0},{"n":"朱曼寧","s":-330,"t":1},{"n":"倪周恩","s":440,"t":3}]},{"id":52,"date":"2026-01-10","status":"approved","players":[{"n":"楊湛華","s":-650,"t":1},{"n":"吳致亨","s":180,"t":1},{"n":"朱曼寧","s":350,"t":2},{"n":"廖冠茗","s":120,"t":2}]},{"id":53,"date":"2026-01-12","status":"approved","players":[{"n":"陳昀瑋","s":-890,"t":3},{"n":"倪周恩","s":1680,"t":8},{"n":"蔡元傑","s":330,"t":7},{"n":"其他人","s":-1120,"t":2}]},{"id":54,"date":"2026-01-17","status":"approved","players":[{"n":"楊湛華","s":-120,"t":1},{"n":"朱曼寧","s":-670,"t":0},{"n":"倪周恩","s":160,"t":2},{"n":"其他人","s":630,"t":1}]},{"id":55,"date":"2026-01-23","status":"approved","players":[{"n":"楊湛華","s":-930,"t":2},{"n":"陳昀瑋","s":90,"t":3},{"n":"朱曼寧","s":440,"t":3},{"n":"郭易非","s":400,"t":4}]},{"id":56,"date":"2026-01-31","status":"approved","players":[{"n":"楊湛華","s":-150,"t":1},{"n":"陳廷安","s":120,"t":1},{"n":"傅柏文","s":-440,"t":0},{"n":"朱曼寧","s":470,"t":2}]},{"id":57,"date":"2026-02-06","status":"approved","players":[{"n":"楊湛華","s":-20,"t":1},{"n":"陳昀瑋","s":-580,"t":0},{"n":"朱曼寧","s":440,"t":2},{"n":"蔡元傑","s":160,"t":0}]},{"id":58,"date":"2026-02-07","status":"approved","players":[{"n":"楊湛華","s":40,"t":1},{"n":"陳廷安","s":90,"t":2},{"n":"陳昀瑋","s":-450,"t":0},{"n":"倪周恩","s":320,"t":2}]},{"id":59,"date":"2026-02-07","status":"approved","players":[{"n":"楊湛華","s":400,"t":3},{"n":"吳致亨","s":-270,"t":1},{"n":"陳昀瑋","s":-130,"t":1},{"n":"倪周恩","s":0,"t":2}]},{"id":60,"date":"2026-02-12","status":"approved","players":[{"n":"楊湛華","s":520,"t":4},{"n":"陳昀瑋","s":130,"t":2},{"n":"倪周恩","s":-540,"t":1},{"n":"鄭以湉","s":-110,"t":1}]},{"id":61,"date":"2026-02-12","status":"approved","players":[{"n":"楊湛華","s":-460,"t":0},{"n":"陳昀瑋","s":290,"t":3},{"n":"倪周恩","s":-480,"t":0},{"n":"鄭以湉","s":650,"t":4}]},{"id":62,"date":"2026-02-14","status":"approved","players":[{"n":"楊湛華","s":-520,"t":1},{"n":"吳致亨","s":900,"t":2},{"n":"陳昀瑋","s":-270,"t":0},{"n":"朱曼寧","s":-110,"t":7}]},{"id":63,"date":"2026-02-14","status":"approved","players":[{"n":"楊湛華","s":-350,"t":1},{"n":"吳致亨","s":220,"t":3},{"n":"陳昀瑋","s":-390,"t":1},{"n":"朱曼寧","s":520,"t":2}]},{"id":64,"date":"2026-02-21","status":"approved","players":[{"n":"楊湛華","s":160,"t":1},{"n":"林翔","s":-220,"t":2},{"n":"吳致亨","s":270,"t":1},{"n":"陳昀瑋","s":-210,"t":1}]},{"id":65,"date":"2026-02-27","status":"approved","players":[{"n":"楊湛華","s":40,"t":2},{"n":"陳昀瑋","s":-610,"t":0},{"n":"蔡元傑","s":450,"t":3},{"n":"其他人","s":120,"t":2}]},{"id":66,"date":"2026-02-27","status":"approved","players":[{"n":"楊湛華","s":550,"t":5},{"n":"陳昀瑋","s":-120,"t":1},{"n":"蔡元傑","s":230,"t":4},{"n":"其他人","s":-660,"t":5}]},{"id":67,"date":"2026-02-28","status":"approved","players":[{"n":"楊湛華","s":460,"t":3},{"n":"朱曼寧","s":-220,"t":1},{"n":"倪周恩","s":720,"t":3},{"n":"鄭以湉","s":-960,"t":0}]},{"id":68,"date":"2026-03-07","status":"approved","players":[{"n":"楊湛華","s":-10,"t":1},{"n":"陳昀瑋","s":370,"t":3},{"n":"倪周恩","s":20,"t":2},{"n":"蔡元傑","s":-380,"t":1}]},{"id":69,"date":"2026-03-21","status":"approved","players":[{"n":"楊湛華","s":420,"t":4},{"n":"陳昀瑋","s":-440,"t":2},{"n":"倪周恩","s":-530,"t":3},{"n":"鄭以湉","s":550,"t":4}]}];
+<!-- Firebase SDKs -->
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getAuth, GoogleAuthProvider, signInWithRedirect, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-const PLAYERS=['楊湛華','林翔','陳廷安','吳致亨','陳威宇','劉其鷹','楊皓淵','陳昀瑋','傅柏文','陳奕廷','朱曼寧','廖冠茗','倪周恩','鄭以湉','郭易非','蔡元傑','其他人'];
+// ── Firebase Config ──
+const firebaseConfig = {
+  apiKey: "AIzaSyD1nQu5AP4B987ORSNU6kaZ2tXdyd_ejUE",
+  authDomain: "mahjong-tracker-13b5b.firebaseapp.com",
+  projectId: "mahjong-tracker-13b5b",
+  storageBucket: "mahjong-tracker-13b5b.firebasestorage.app",
+  messagingSenderId: "1089370572162",
+  appId: "1:1089370572162:web:6a6b2ffb5c6480fb70fb9b"
+};
 
-let records=JSON.parse(localStorage.getItem('mj_v3')||'null');
-if(!records){records=JSON.parse(JSON.stringify(SEED_DATA));localStorage.setItem('mj_v3',JSON.stringify(records));}
-let nextId=Math.max(...records.map(r=>r.id))+1;
-function save(){localStorage.setItem('mj_v3',JSON.stringify(records));}
+const ADMIN_EMAIL = 'jtty1234@gmail.com';
+const PLAYERS = ['楊湛華','林翔','陳廷安','吳致亨','陳威宇','劉其鷹','楊皓淵','陳昀瑋','傅柏文','陳奕廷','朱曼寧','廖冠茗','倪周恩','鄭以湉','郭易非','蔡元傑','其他人'];
 
-let lbF={period:'all',type:'score',order:'desc'};
-let histP='all';
-let isAdmin=false,adminUser='';
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
-function showPage(n,el){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('page-'+n).classList.add('active');
-  el.classList.add('active');
-  if(n==='dashboard')renderDash();
-  if(n==='leaderboard')renderLB();
-  if(n==='history')renderHistory();
-  if(n==='submit')renderForm();
-  if(n==='admin')renderAdmin();
-}
+// ── State ──
+let allRecords = []; // approved records cached
+let currentUser = null;
+let lbF = { period:'all', type:'score', order:'desc' };
+let histP = 'all';
 
-function approved(){return records.filter(r=>r.status==='approved');}
-function pending(){return records.filter(r=>r.status==='pending');}
+// ── Seed Data (imported once on first load) ──
+const SEED = [{"date":"2024-01-27","players":[{"n":"楊湛華","s":1100,"t":null},{"n":"林翔","s":-860,"t":null},{"n":"陳昀瑋","s":120,"t":null},{"n":"其他外人","s":-360,"t":null}]},{"date":"2024-02-08","players":[{"n":"楊湛華","s":350,"t":null},{"n":"林翔","s":120,"t":null},{"n":"楊皓淵","s":-430,"t":null},{"n":"陳昀瑋","s":-40,"t":null}]},{"date":"2024-02-08","players":[{"n":"楊湛華","s":-30,"t":null},{"n":"林翔","s":-220,"t":null},{"n":"楊皓淵","s":50,"t":null},{"n":"其他外人","s":200,"t":null}]},{"date":"2024-02-13","players":[{"n":"楊湛華","s":-680,"t":null},{"n":"吳致亨","s":1130,"t":null},{"n":"陳昀瑋","s":-170,"t":null},{"n":"其他外人","s":-280,"t":null}]},{"date":"2024-02-19","players":[{"n":"楊湛華","s":-360,"t":null},{"n":"林翔","s":550,"t":null},{"n":"楊皓淵","s":-160,"t":null},{"n":"陳昀瑋","s":-30,"t":null}]},{"date":"2024-03-24","players":[{"n":"楊湛華","s":-360,"t":null},{"n":"林翔","s":160,"t":null},{"n":"陳廷安","s":570,"t":null},{"n":"陳昀瑋","s":-370,"t":null}]},{"date":"2024-04-28","players":[{"n":"楊湛華","s":-40,"t":null},{"n":"林翔","s":180,"t":null},{"n":"陳威宇","s":-210,"t":null},{"n":"陳昀瑋","s":70,"t":null}]},{"date":"2024-06-08","players":[{"n":"楊湛華","s":390,"t":null},{"n":"林翔","s":-270,"t":null},{"n":"陳廷安","s":100,"t":null},{"n":"陳昀瑋","s":-220,"t":null}]},{"date":"2024-06-16","players":[{"n":"楊湛華","s":0,"t":null},{"n":"林翔","s":-270,"t":null},{"n":"陳廷安","s":250,"t":null},{"n":"陳昀瑋","s":20,"t":null}]},{"date":"2024-06-22","players":[{"n":"楊湛華","s":80,"t":null},{"n":"林翔","s":-20,"t":null},{"n":"陳廷安","s":-210,"t":null},{"n":"劉其鷹","s":150,"t":null}]},{"date":"2024-06-28","players":[{"n":"楊湛華","s":300,"t":null},{"n":"林翔","s":-320,"t":null},{"n":"吳致亨","s":0,"t":null},{"n":"劉其鷹","s":20,"t":null}]},{"date":"2024-08-17","players":[{"n":"楊湛華","s":0,"t":null},{"n":"林翔","s":-230,"t":null},{"n":"陳昀瑋","s":260,"t":null},{"n":"其他外人","s":-30,"t":null}]},{"date":"2024-09-02","players":[{"n":"楊湛華","s":-40,"t":null},{"n":"林翔","s":-160,"t":null},{"n":"陳昀瑋","s":140,"t":null},{"n":"其他外人","s":60,"t":null}]},{"date":"2024-09-13","players":[{"n":"楊湛華","s":120,"t":null},{"n":"陳廷安","s":380,"t":null},{"n":"陳昀瑋","s":-100,"t":null},{"n":"傅柏文","s":-400,"t":null}]},{"date":"2024-09-29","players":[{"n":"楊湛華","s":-280,"t":null},{"n":"陳廷安","s":380,"t":null},{"n":"陳昀瑋","s":-100,"t":null},{"n":"其他外人","s":0,"t":null}]},{"date":"2024-10-03","players":[{"n":"楊湛華","s":-480,"t":null},{"n":"林翔","s":-290,"t":null},{"n":"吳致亨","s":910,"t":null},{"n":"陳昀瑋","s":-140,"t":null}]},{"date":"2024-10-12","players":[{"n":"林翔","s":230,"t":null},{"n":"陳廷安","s":-250,"t":null},{"n":"吳致亨","s":270,"t":null},{"n":"陳昀瑋","s":-250,"t":null}]},{"date":"2024-11-07","players":[{"n":"楊湛華","s":80,"t":null},{"n":"林翔","s":-130,"t":null},{"n":"陳昀瑋","s":150,"t":null},{"n":"陳奕廷","s":-100,"t":null}]},{"date":"2024-11-09","players":[{"n":"林翔","s":-280,"t":null},{"n":"陳廷安","s":1000,"t":null},{"n":"吳致亨","s":-350,"t":null},{"n":"劉其鷹","s":60,"t":null},{"n":"陳昀瑋","s":-10,"t":null}]},{"date":"2024-11-10","players":[{"n":"楊湛華","s":-180,"t":null},{"n":"林翔","s":130,"t":null}]},{"date":"2024-11-24","players":[{"n":"楊湛華","s":-50,"t":null},{"n":"林翔","s":450,"t":null},{"n":"陳昀瑋","s":-220,"t":null},{"n":"其他外人","s":180,"t":null}]},{"date":"2024-12-08","players":[{"n":"林翔","s":-180,"t":null},{"n":"吳致亨","s":330,"t":null},{"n":"劉其鷹","s":-140,"t":null},{"n":"陳昀瑋","s":-10,"t":null}]},{"date":"2024-12-22","players":[{"n":"楊湛華","s":-90,"t":null},{"n":"林翔","s":-30,"t":null},{"n":"吳致亨","s":-140,"t":null},{"n":"陳昀瑋","s":260,"t":null}]},{"date":"2025-01-06","players":[{"n":"楊湛華","s":440,"t":null},{"n":"吳致亨","s":-160,"t":null},{"n":"陳昀瑋","s":-190,"t":null},{"n":"朱曼寧","s":-90,"t":null}]},{"date":"2025-01-11","players":[{"n":"楊湛華","s":-400,"t":null},{"n":"林翔","s":110,"t":null},{"n":"陳昀瑋","s":70,"t":null},{"n":"朱曼寧","s":220,"t":null}]},{"date":"2025-01-18","players":[{"n":"林翔","s":-80,"t":null},{"n":"陳廷安","s":60,"t":null},{"n":"吳致亨","s":-80,"t":null},{"n":"陳昀瑋","s":100,"t":null}]},{"date":"2025-01-21","players":[{"n":"楊湛華","s":240,"t":null},{"n":"林翔","s":-380,"t":null},{"n":"吳致亨","s":350,"t":null},{"n":"楊皓淵","s":-70,"t":null},{"n":"陳昀瑋","s":-140,"t":null}]},{"date":"2025-02-02","players":[{"n":"楊湛華","s":-380,"t":null},{"n":"吳致亨","s":280,"t":null},{"n":"陳昀瑋","s":-650,"t":null},{"n":"朱曼寧","s":750,"t":null}]},{"date":"2025-04-20","players":[{"n":"楊湛華","s":350,"t":null},{"n":"林翔","s":410,"t":null},{"n":"吳致亨","s":-60,"t":null},{"n":"傅柏文","s":-670,"t":null},{"n":"朱曼寧","s":-30,"t":null}]},{"date":"2025-04-27","players":[{"n":"楊湛華","s":80,"t":null},{"n":"陳昀瑋","s":-380,"t":null},{"n":"朱曼寧","s":100,"t":null},{"n":"其他人","s":200,"t":null}]},{"date":"2025-04-27","players":[{"n":"楊湛華","s":40,"t":null},{"n":"林翔","s":50,"t":null},{"n":"陳昀瑋","s":-70,"t":null},{"n":"朱曼寧","s":-20,"t":null}]},{"date":"2025-04-28","players":[{"n":"林翔","s":30,"t":null},{"n":"陳廷安","s":-40,"t":null},{"n":"陳昀瑋","s":-130,"t":null},{"n":"傅柏文","s":140,"t":null}]},{"date":"2025-05-02","players":[{"n":"林翔","s":290,"t":null},{"n":"陳廷安","s":-10,"t":null},{"n":"吳致亨","s":-470,"t":null},{"n":"陳昀瑋","s":190,"t":null}]},{"date":"2025-05-09","players":[{"n":"楊湛華","s":580,"t":null},{"n":"林翔","s":-190,"t":null},{"n":"陳昀瑋","s":-940,"t":null},{"n":"朱曼寧","s":550,"t":null}]},{"date":"2025-05-30","players":[{"n":"楊湛華","s":-20,"t":null},{"n":"陳廷安","s":-1540,"t":null},{"n":"吳致亨","s":-1020,"t":null},{"n":"朱曼寧","s":2580,"t":null}]},{"date":"2025-07-05","players":[{"n":"楊湛華","s":500,"t":null},{"n":"楊皓淵","s":-270,"t":null},{"n":"陳昀瑋","s":-160,"t":null}]},{"date":"2025-07-06","players":[{"n":"楊湛華","s":130,"t":null},{"n":"林翔","s":-70,"t":null},{"n":"陳廷安","s":-80,"t":null},{"n":"陳昀瑋","s":0,"t":null}]},{"date":"2025-08-03","players":[{"n":"楊湛華","s":640,"t":null},{"n":"吳致亨","s":-370,"t":null},{"n":"陳昀瑋","s":-730,"t":null},{"n":"朱曼寧","s":460,"t":null}]},{"date":"2025-08-09","players":[{"n":"楊湛華","s":-130,"t":null},{"n":"林翔","s":380,"t":null},{"n":"陳廷安","s":-100,"t":null},{"n":"陳昀瑋","s":-150,"t":null}]},{"date":"2025-09-13","players":[{"n":"楊湛華","s":760,"t":null},{"n":"陳昀瑋","s":30,"t":null},{"n":"朱曼寧","s":-980,"t":null},{"n":"廖冠茗","s":190,"t":null}]},{"date":"2025-09-28","players":[{"n":"楊湛華","s":-790,"t":null},{"n":"陳昀瑋","s":160,"t":null},{"n":"朱曼寧","s":430,"t":null},{"n":"其他人","s":200,"t":null}]},{"date":"2025-09-29","players":[{"n":"楊湛華","s":-30,"t":null},{"n":"林翔","s":-410,"t":null},{"n":"陳昀瑋","s":10,"t":null},{"n":"其他人","s":430,"t":null}]},{"date":"2025-10-12","players":[{"n":"楊湛華","s":40,"t":null},{"n":"林翔","s":-180,"t":null},{"n":"陳廷安","s":40,"t":null},{"n":"陳昀瑋","s":100,"t":null}]},{"date":"2025-11-08","players":[{"n":"楊湛華","s":-290,"t":null},{"n":"林翔","s":160,"t":null},{"n":"吳致亨","s":440,"t":null},{"n":"陳昀瑋","s":-310,"t":null}]},{"date":"2025-11-14","players":[{"n":"楊湛華","s":500,"t":null},{"n":"陳昀瑋","s":340,"t":null},{"n":"朱曼寧","s":-790,"t":null},{"n":"其他人","s":-50,"t":null}]},{"date":"2025-11-21","players":[{"n":"楊湛華","s":-140,"t":null},{"n":"陳昀瑋","s":250,"t":null},{"n":"倪周恩","s":390,"t":null},{"n":"其他人","s":-500,"t":null}]},{"date":"2025-12-06","players":[{"n":"楊湛華","s":980,"t":null},{"n":"吳致亨","s":-570,"t":null},{"n":"陳昀瑋","s":530,"t":null},{"n":"朱曼寧","s":-940,"t":null}]},{"date":"2025-12-14","players":[{"n":"楊湛華","s":630,"t":null},{"n":"陳昀瑋","s":-1320,"t":null},{"n":"朱曼寧","s":1130,"t":null},{"n":"其他人","s":-440,"t":null}]},{"date":"2025-12-26","players":[{"n":"楊湛華","s":-70,"t":null},{"n":"陳昀瑋","s":280,"t":null},{"n":"朱曼寧","s":-260,"t":null},{"n":"倪周恩","s":50,"t":null}]},{"date":"2025-12-26","players":[{"n":"楊湛華","s":460,"t":null},{"n":"陳昀瑋","s":-210,"t":null},{"n":"朱曼寧","s":-210,"t":null},{"n":"倪周恩","s":-40,"t":null}]},{"date":"2026-01-03","players":[{"n":"楊湛華","s":960,"t":5},{"n":"陳昀瑋","s":-1070,"t":0},{"n":"朱曼寧","s":-330,"t":1},{"n":"倪周恩","s":440,"t":3}]},{"date":"2026-01-10","players":[{"n":"楊湛華","s":-650,"t":1},{"n":"吳致亨","s":180,"t":1},{"n":"朱曼寧","s":350,"t":2},{"n":"廖冠茗","s":120,"t":2}]},{"date":"2026-01-12","players":[{"n":"陳昀瑋","s":-890,"t":3},{"n":"倪周恩","s":1680,"t":8},{"n":"蔡元傑","s":330,"t":7},{"n":"其他人","s":-1120,"t":2}]},{"date":"2026-01-17","players":[{"n":"楊湛華","s":-120,"t":1},{"n":"朱曼寧","s":-670,"t":0},{"n":"倪周恩","s":160,"t":2},{"n":"其他人","s":630,"t":1}]},{"date":"2026-01-23","players":[{"n":"楊湛華","s":-930,"t":2},{"n":"陳昀瑋","s":90,"t":3},{"n":"朱曼寧","s":440,"t":3},{"n":"郭易非","s":400,"t":4}]},{"date":"2026-01-31","players":[{"n":"楊湛華","s":-150,"t":1},{"n":"陳廷安","s":120,"t":1},{"n":"傅柏文","s":-440,"t":0},{"n":"朱曼寧","s":470,"t":2}]},{"date":"2026-02-06","players":[{"n":"楊湛華","s":-20,"t":1},{"n":"陳昀瑋","s":-580,"t":0},{"n":"朱曼寧","s":440,"t":2},{"n":"蔡元傑","s":160,"t":0}]},{"date":"2026-02-07","players":[{"n":"楊湛華","s":40,"t":1},{"n":"陳廷安","s":90,"t":2},{"n":"陳昀瑋","s":-450,"t":0},{"n":"倪周恩","s":320,"t":2}]},{"date":"2026-02-07","players":[{"n":"楊湛華","s":400,"t":3},{"n":"吳致亨","s":-270,"t":1},{"n":"陳昀瑋","s":-130,"t":1},{"n":"倪周恩","s":0,"t":2}]},{"date":"2026-02-12","players":[{"n":"楊湛華","s":520,"t":4},{"n":"陳昀瑋","s":130,"t":2},{"n":"倪周恩","s":-540,"t":1},{"n":"鄭以湉","s":-110,"t":1}]},{"date":"2026-02-12","players":[{"n":"楊湛華","s":-460,"t":0},{"n":"陳昀瑋","s":290,"t":3},{"n":"倪周恩","s":-480,"t":0},{"n":"鄭以湉","s":650,"t":4}]},{"date":"2026-02-14","players":[{"n":"楊湛華","s":-520,"t":1},{"n":"吳致亨","s":900,"t":2},{"n":"陳昀瑋","s":-270,"t":0},{"n":"朱曼寧","s":-110,"t":7}]},{"date":"2026-02-14","players":[{"n":"楊湛華","s":-350,"t":1},{"n":"吳致亨","s":220,"t":3},{"n":"陳昀瑋","s":-390,"t":1},{"n":"朱曼寧","s":520,"t":2}]},{"date":"2026-02-21","players":[{"n":"楊湛華","s":160,"t":1},{"n":"林翔","s":-220,"t":2},{"n":"吳致亨","s":270,"t":1},{"n":"陳昀瑋","s":-210,"t":1}]},{"date":"2026-02-27","players":[{"n":"楊湛華","s":40,"t":2},{"n":"陳昀瑋","s":-610,"t":0},{"n":"蔡元傑","s":450,"t":3},{"n":"其他人","s":120,"t":2}]},{"date":"2026-02-27","players":[{"n":"楊湛華","s":550,"t":5},{"n":"陳昀瑋","s":-120,"t":1},{"n":"蔡元傑","s":230,"t":4},{"n":"其他人","s":-660,"t":5}]},{"date":"2026-02-28","players":[{"n":"楊湛華","s":460,"t":3},{"n":"朱曼寧","s":-220,"t":1},{"n":"倪周恩","s":720,"t":3},{"n":"鄭以湉","s":-960,"t":0}]},{"date":"2026-03-07","players":[{"n":"楊湛華","s":-10,"t":1},{"n":"陳昀瑋","s":370,"t":3},{"n":"倪周恩","s":20,"t":2},{"n":"蔡元傑","s":-380,"t":1}]},{"date":"2026-03-21","players":[{"n":"楊湛華","s":420,"t":4},{"n":"陳昀瑋","s":-440,"t":2},{"n":"倪周恩","s":-530,"t":3},{"n":"鄭以湉","s":550,"t":4}]}];
+
+// ── Helpers ──
 function isOther(n){return n.includes('其他');}
+function fmt(n){return(n>0?'+':'')+n;}
+function fd(d){return d.replace(/-/g,'.');}
+function medal(i){if(i===0)return'🥇';if(i===1)return'🥈';if(i===2)return'🥉';return`<span style="color:rgba(245,237,214,0.4);font-size:0.83rem">${i+1}</span>`;}
 
 function byPeriod(recs,p){
   const now=new Date();
@@ -272,23 +285,88 @@ function agg(recs){
   const m={};
   recs.forEach(r=>r.players.forEach(p=>{
     if(!m[p.n])m[p.n]={name:p.n,score:0,tsumo:0,tg:0,games:0};
-    m[p.n].score+=p.s; m[p.n].games++;
-    if(p.t!==null){m[p.n].tsumo+=p.t;m[p.n].tg++;}
+    m[p.n].score+=p.s;m[p.n].games++;
+    if(p.t!==null&&p.t!==undefined){m[p.n].tsumo+=p.t;m[p.n].tg++;}
   }));
   return Object.values(m);
 }
 
-function medal(i){
-  if(i===0)return'🥇';if(i===1)return'🥈';if(i===2)return'🥉';
-  return`<span style="color:rgba(245,237,214,0.4);font-size:0.83rem">${i+1}</span>`;
+// ── Firebase: Load approved records ──
+async function loadRecords() {
+  const snap = await getDocs(query(collection(db,'records'), orderBy('date','desc')));
+  allRecords = snap.docs.map(d=>({id:d.id,...d.data()}));
+  hideLoading();
+  renderDash();
+  // Re-render current page if needed
+  const activePage = document.querySelector('.page.active')?.id?.replace('page-','');
+  if(activePage==='leaderboard') renderLB();
+  if(activePage==='history') renderHistory();
 }
-function fmt(n){return(n>0?'+':'')+n;}
-function fd(d){return d.replace(/-/g,'.');}
 
+// ── Seed: import historical data once ──
+async function seedIfEmpty() {
+  const snap = await getDocs(collection(db,'records'));
+  if(snap.size > 0) { await loadRecords(); return; }
+  toast('首次載入，匯入歷史資料中…');
+  const batch = [];
+  for(const r of SEED){
+    batch.push(addDoc(collection(db,'records'),{...r, status:'approved', createdAt: new Date().toISOString()}));
+  }
+  await Promise.all(batch);
+  toast('✅ 歷史資料匯入完成！');
+  await loadRecords();
+}
+
+function hideLoading(){document.getElementById('loadingOverlay').style.display='none';}
+
+// ── Auth ──
+onAuthStateChanged(auth, user => {
+  currentUser = user;
+  const btn = document.getElementById('loginBtn');
+  const avatar = document.getElementById('adminAvatar');
+  const adminTab = document.getElementById('adminTab');
+  if(user){
+    const isAdmin = user.email === ADMIN_EMAIL;
+    btn.textContent = '登出';
+    if(user.photoURL){avatar.src=user.photoURL;avatar.style.display='block';}
+    if(isAdmin){
+      adminTab.style.display='';
+      document.getElementById('adminEmail').textContent = user.email;
+    }
+  } else {
+    btn.textContent = 'Google 登入';
+    avatar.style.display='none';
+    adminTab.style.display='none';
+    // If on admin page, go back to dashboard
+    if(document.getElementById('page-admin').classList.contains('active')){
+      document.querySelector('.nav-tab').click();
+    }
+  }
+});
+
+window.handleAuth = async function(){
+  if(currentUser){ await signOut(auth); toast('已登出'); }
+  else { try{ await signInWithRedirect(auth,provider); toast('✅ 登入成功'); } catch(e){ toast('登入取消'); } }
+};
+
+// ── Nav ──
+window.showPage = function(n,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+n).classList.add('active');
+  el.classList.add('active');
+  if(n==='dashboard') renderDash();
+  if(n==='leaderboard') renderLB();
+  if(n==='history') renderHistory();
+  if(n==='submit') renderForm();
+  if(n==='admin') renderAdmin();
+};
+
+// ── Dashboard ──
 function renderDash(){
-  const app=approved().sort((a,b)=>b.date.localeCompare(a.date));
-  const allP=agg(app);
-  const tt=allP.reduce((s,p)=>s+p.tsumo,0);
+  const app = allRecords.filter(r=>r.status==='approved').sort((a,b)=>b.date.localeCompare(a.date));
+  const allP = agg(app);
+  const tt = allP.reduce((s,p)=>s+p.tsumo,0);
   document.getElementById('dashStats').innerHTML=`
     <div class="stat-card"><div class="stat-icon">🎴</div><div class="stat-label">總場次</div><div class="stat-value">${app.length}</div></div>
     <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-label">常駐玩家</div><div class="stat-value">${allP.filter(p=>!isOther(p.name)).length}</div></div>
@@ -299,14 +377,10 @@ function renderDash(){
     document.getElementById('recentDate').textContent=fd(r.date);
     const s=[...r.players].sort((a,b)=>b.s-a.s);
     document.getElementById('recentPlayers').innerHTML=s.map((p,i)=>`
-      <div class="player-row">
-        <div class="player-rank">${medal(i)}</div>
-        <div class="player-name">${p.n}</div>
-        <div class="player-score ${p.s>0?'pos':p.s<0?'neg':''}">${fmt(p.s)} 元</div>
-        <div class="player-tsumo">${p.t!==null?'自摸 '+p.t+' 次':''}</div>
-      </div>`).join('');
+      <div class="player-row"><div class="player-rank">${medal(i)}</div><div class="player-name">${p.n}</div>
+      <div class="player-score ${p.s>0?'pos':p.s<0?'neg':''}">${fmt(p.s)} 元</div>
+      <div class="player-tsumo">${p.t!=null?'自摸 '+p.t+' 次':''}</div></div>`).join('');
   }
-  const now=new Date();
   const ya=byPeriod(app,'year');
   const yp=agg(ya).filter(p=>!isOther(p.name)).sort((a,b)=>b.score-a.score);
   const yt=agg(ya).filter(p=>!isOther(p.name)&&p.tg>0).sort((a,b)=>b.tsumo-a.tsumo);
@@ -314,46 +388,48 @@ function renderDash(){
   document.getElementById('yearlyTsumo').innerHTML=yt[0]?`<div style="font-size:1.3rem;margin-bottom:0.4rem">🎯</div><strong style="color:var(--gold-light);font-size:1.05rem">${yt[0].name}</strong><div style="color:#5dba7d;margin-top:0.3rem">${yt[0].tsumo} 次 · ${yt[0].tg} 場</div>`:'<span style="color:rgba(245,237,214,0.3)">無自摸紀錄</span>';
 }
 
-function setLbFilter(k,v,btn){
+// ── Leaderboard ──
+window.setLbFilter = function(k,v,btn){
   lbF[k]=v;
   btn.closest('.filter-group').querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderLB();
-}
+};
 
 function renderLB(){
-  const recs=byPeriod(approved(),lbF.period);
+  const recs=byPeriod(allRecords.filter(r=>r.status==='approved'),lbF.period);
   let ps=agg(recs).filter(p=>!isOther(p.name));
   const k=lbF.type==='score'?'score':'tsumo';
   ps.sort((a,b)=>lbF.order==='desc'?b[k]-a[k]:a[k]-b[k]);
   document.getElementById('lbBody').innerHTML=ps.map((p,i)=>`
-    <tr>
-      <td class="rank-cell">${medal(i)}</td>
-      <td>${p.name}</td>
-      <td class="score-cell ${p.score>0?'pos':p.score<0?'neg':''}" style="text-align:right">${fmt(p.score)}</td>
-      <td style="text-align:right;color:rgba(245,237,214,0.6)">${p.tg>0?p.tsumo:'—'}</td>
-      <td style="text-align:right;color:rgba(245,237,214,0.5)">${p.games}</td>
-      <td style="text-align:right;color:rgba(245,237,214,0.6)">${p.games?fmt(Math.round(p.score/p.games)):'—'}</td>
-    </tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:rgba(245,237,214,0.3);padding:2rem">無資料</td></tr>';
+    <tr><td class="rank-cell">${medal(i)}</td><td>${p.name}</td>
+    <td class="score-cell ${p.score>0?'pos':p.score<0?'neg':''}" style="text-align:right">${fmt(p.score)}</td>
+    <td style="text-align:right;color:rgba(245,237,214,0.6)">${p.tg>0?p.tsumo:'—'}</td>
+    <td style="text-align:right;color:rgba(245,237,214,0.5)">${p.games}</td>
+    <td style="text-align:right;color:rgba(245,237,214,0.6)">${p.games?fmt(Math.round(p.score/p.games)):'—'}</td></tr>`).join('')
+    ||'<tr><td colspan="6" style="text-align:center;color:rgba(245,237,214,0.3);padding:2rem">無資料</td></tr>';
 }
 
-function setHistoryFilter(p,btn){
+// ── History ──
+window.setHistoryFilter = function(p,btn){
   histP=p;
   btn.closest('.filter-group').querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderHistory();
-}
+};
 
 function renderHistory(){
   const search=(document.getElementById('historySearch')?.value||'').trim().toLowerCase();
-  let recs=byPeriod(approved(),histP).filter(r=>!search||r.players.some(p=>p.n.toLowerCase().includes(search))).sort((a,b)=>b.date.localeCompare(a.date));
+  let recs=byPeriod(allRecords.filter(r=>r.status==='approved'),histP)
+    .filter(r=>!search||r.players.some(p=>p.n.toLowerCase().includes(search)))
+    .sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('histCount').textContent=recs.length;
   if(!recs.length){document.getElementById('historyList').innerHTML='<div class="empty-state"><div class="empty-icon">🀄</div>找不到符合的場次</div>';return;}
   document.getElementById('historyList').innerHTML=recs.map(r=>{
     const s=[...r.players].sort((a,b)=>b.s-a.s);
-    const hasTsumo=r.players.some(p=>p.t!==null);
+    const hasTsumo=r.players.some(p=>p.t!==null&&p.t!==undefined);
     return`<div class="session-card" id="sc-${r.id}">
-      <div class="session-header" onclick="tog(${r.id})">
+      <div class="session-header" onclick="tog('${r.id}')">
         <div class="session-date-badge">${fd(r.date)}</div>
         <div class="session-players">${r.players.map(p=>p.n).join('・')}</div>
         <div class="session-winner">🏆 ${s[0].n} ${fmt(s[0].s)}</div>
@@ -361,14 +437,17 @@ function renderHistory(){
       </div>
       <div class="session-detail">
         <div class="session-detail-grid">
-          ${s.map((p,i)=>`<div class="detail-row"><div class="detail-name">${medal(i)} ${p.n}</div><div class="detail-stats"><span style="font-weight:700;${p.s>0?'color:#5dba7d':p.s<0?'color:var(--red-light)':''}">${fmt(p.s)} 元</span>${hasTsumo&&p.t!==null?`<span style="color:rgba(245,237,214,0.42)">自摸 ${p.t} 次</span>`:''}</div></div>`).join('')}
+          ${s.map((p,i)=>`<div class="detail-row"><div class="detail-name">${medal(i)} ${p.n}</div>
+          <div class="detail-stats"><span style="font-weight:700;${p.s>0?'color:#5dba7d':p.s<0?'color:var(--red-light)':''}">${fmt(p.s)} 元</span>
+          ${hasTsumo&&p.t!=null?`<span style="color:rgba(245,237,214,0.42)">自摸 ${p.t} 次</span>`:''}</div></div>`).join('')}
         </div>
       </div>
     </div>`;
   }).join('');
 }
-function tog(id){document.getElementById('sc-'+id).classList.toggle('open');}
+window.tog = function(id){document.getElementById('sc-'+id).classList.toggle('open');};
 
+// ── Submit ──
 function renderForm(){
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   const opts=PLAYERS.map(p=>`<option value="${p}">${p}</option>`).join('');
@@ -382,56 +461,72 @@ function renderForm(){
   [0,1,2,3].forEach(i=>document.getElementById(`fp-n-${i+1}`).selectedIndex=i);
 }
 
-function submitRecord(){
+window.submitRecord = async function(){
   const date=document.getElementById('f-date').value;
   if(!date){toast('請填寫日期');return;}
   const ps=[1,2,3,4].map(i=>({n:document.getElementById(`fp-n-${i}`).value,s:parseInt(document.getElementById(`fp-s-${i}`).value)||0,t:parseInt(document.getElementById(`fp-t-${i}`).value)||0}));
   if(new Set(ps.map(p=>p.n)).size!==4){toast('四位玩家不可重複');return;}
   if(ps.reduce((s,p)=>s+p.s,0)!==0){toast('勝負分總和須為 0');return;}
-  records.push({id:nextId++,date,status:'pending',players:ps});
-  save();toast('✅ 已送出，等待管理員審核');renderForm();
-}
+  try{
+    await addDoc(collection(db,'pending'),{date,players:ps,status:'pending',createdAt:new Date().toISOString()});
+    toast('✅ 已送出，等待管理員審核');
+    renderForm();
+  }catch(e){toast('送出失敗，請重試');}
+};
 
-function renderAdmin(){
-  if(!isAdmin){document.getElementById('adminLoginPrompt').style.display='';document.getElementById('adminPanel').style.display='none';return;}
-  document.getElementById('adminLoginPrompt').style.display='none';
-  document.getElementById('adminPanel').style.display='';
-  document.getElementById('adminEmail').textContent=adminUser;
-  const pend=pending();
+// ── Admin ──
+async function renderAdmin(){
+  if(!currentUser || currentUser.email!==ADMIN_EMAIL){
+    toast('需要管理員權限');return;
+  }
+  // Load pending
+  const snap=await getDocs(query(collection(db,'pending'),orderBy('createdAt','desc')));
+  const pend=snap.docs.map(d=>({id:d.id,...d.data()}));
   document.getElementById('pendingCount').textContent=pend.length;
   document.getElementById('pendingList').innerHTML=pend.length?pend.map(r=>`
     <div class="pending-item">
-      <div class="pending-info"><div class="pending-date">📅 ${fd(r.date)}</div><div class="pending-players-list">${r.players.map(p=>`${p.n} ${fmt(p.s)}元`).join(' ｜ ')}</div></div>
-      <div class="pending-actions"><button class="btn-approve" onclick="approve(${r.id})">✓ 批准</button><button class="btn-danger" onclick="reject(${r.id})">✗ 拒絕</button></div>
+      <div class="pending-info"><div class="pending-date">📅 ${fd(r.date)}</div>
+      <div class="pending-players-list">${r.players.map(p=>`${p.n} ${fmt(p.s)}元`).join(' ｜ ')}</div></div>
+      <div class="pending-actions">
+        <button class="btn-approve" onclick="approve('${r.id}','${r.date}',${JSON.stringify(r.players).replace(/'/g,"&#39;")})">✓ 批准</button>
+        <button class="btn-danger" onclick="rejectP('${r.id}')">✗ 拒絕</button>
+      </div>
     </div>`).join(''):'<div class="empty-state"><div class="empty-icon">✅</div>目前無待審核場次</div>';
-  const app=approved().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+
+  // Recent approved
+  const app=allRecords.filter(r=>r.status==='approved').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
   document.getElementById('approvedManage').innerHTML=app.map(r=>`
     <div class="pending-item">
-      <div class="pending-info"><div class="pending-date">📅 ${fd(r.date)}</div><div class="pending-players-list">${r.players.map(p=>`${p.n} ${fmt(p.s)}元`).join(' ｜ ')}</div></div>
-      <div class="pending-actions"><button class="btn-danger" onclick="del(${r.id})">🗑 刪除</button></div>
+      <div class="pending-info"><div class="pending-date">📅 ${fd(r.date)}</div>
+      <div class="pending-players-list">${r.players.map(p=>`${p.n} ${fmt(p.s)}元`).join(' ｜ ')}</div></div>
+      <div class="pending-actions"><button class="btn-danger" onclick="delRecord('${r.id}')">🗑 刪除</button></div>
     </div>`).join('');
 }
 
-function approve(id){const r=records.find(r=>r.id===id);if(r)r.status='approved';save();toast('✅ 已批准');renderAdmin();}
-function reject(id){records=records.filter(r=>r.id!==id);save();toast('已拒絕');renderAdmin();}
-function del(id){if(!confirm('確認刪除？'))return;records=records.filter(r=>r.id!==id);save();toast('已刪除');renderAdmin();}
+window.approve = async function(pendingId, date, players){
+  try{
+    await addDoc(collection(db,'records'),{date,players,status:'approved',createdAt:new Date().toISOString()});
+    await deleteDoc(doc(db,'pending',pendingId));
+    toast('✅ 已批准並公開');
+    await loadRecords();
+    await renderAdmin();
+  }catch(e){toast('操作失敗');}
+};
 
-function toggleAdminModal(){document.getElementById('adminModal').classList.add('show');}
-function closeModal(){document.getElementById('adminModal').classList.remove('show');}
-function adminLogin(){
-  const email=document.getElementById('adminEmailInput').value;
-  if(!email){toast('請輸入 Email');return;}
-  isAdmin=true;adminUser=email;
-  document.getElementById('adminLoginBtn').textContent='管理員 ▾';
-  document.getElementById('adminLoginBtn').classList.add('active');
-  closeModal();toast('✅ 登入成功');
-}
-function adminLogout(){isAdmin=false;adminUser='';document.getElementById('adminLoginBtn').textContent='登入';document.getElementById('adminLoginBtn').classList.remove('active');renderAdmin();toast('已登出');}
+window.rejectP = async function(id){
+  await deleteDoc(doc(db,'pending',id));
+  toast('已拒絕');
+  await renderAdmin();
+};
 
+window.delRecord = async function(id){
+  if(!confirm('確認刪除此場次？'))return;
+  await deleteDoc(doc(db,'records',id));
+  toast('已刪除');
+  await loadRecords();
+  await renderAdmin();
+};
+
+// ── Toast ──
 let _tt;
-function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('show'),2800);}
-
-renderDash();
-</script>
-</body>
-</html>
+window.toast = function(msg){const
