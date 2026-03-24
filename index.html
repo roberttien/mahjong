@@ -509,7 +509,12 @@ async function submitRecord(){
 
 // ── Admin ──
 async function renderAdmin(){
-  if(!currentUser||currentUser.email!==ADMIN_EMAIL){toast('需要管理員權限');return;}
+  const email = currentUser?.email || '';
+  const isMain = email === 'jtty1234@gmail.com';
+  const isSub = subAdmins.includes(email);
+  if(!isMain && !isSub){toast('需要管理員權限');return;}
+
+  // 待審核（主管理員＋副管理員都看得到）
   const snap=await db.collection('pending').orderBy('createdAt','desc').get();
   const pend=snap.docs.map(d=>({id:d.id,...d.data()}));
   document.getElementById('pendingCount').textContent=pend.length;
@@ -521,12 +526,27 @@ async function renderAdmin(){
     '<button class="btn-approve" onclick="approveR(\''+r.id+'\','+JSON.stringify(r.date)+','+JSON.stringify(r.players)+')">✓ 批准</button>'+
     '<button class="btn-danger" onclick="rejectR(\''+r.id+'\')">✗ 拒絕</button>'+
     '</div></div>').join(''):'<div class="empty-state"><div class="empty-icon">✅</div>目前無待審核場次</div>';
-  const app=allRecords.filter(r=>r.status==='approved').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
-  document.getElementById('approvedManage').innerHTML=app.map(r=>
-    '<div class="pending-item"><div class="pending-info">'+
-    '<div class="pending-date">📅 '+fd(r.date)+'</div>'+
-    '<div class="pending-players-list">'+r.players.map(p=>p.n+' '+fmt(p.s)+'元').join(' ｜ ')+'</div></div>'+
-    '<div class="pending-actions"><button class="btn-danger" onclick="delR(\''+r.id+'\')">🗑 刪除</button></div></div>').join('');
+
+  // 已審核＋副管理員名單（只有主管理員看得到）
+  document.getElementById('approvedSection').style.display = isMain ? '' : 'none';
+  document.getElementById('subAdminSection').style.display = isMain ? '' : 'none';
+
+  if(isMain){
+    const app=allRecords.filter(r=>r.status==='approved').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+    document.getElementById('approvedManage').innerHTML=app.map(r=>
+      '<div class="pending-item"><div class="pending-info">'+
+      '<div class="pending-date">📅 '+fd(r.date)+'</div>'+
+      '<div class="pending-players-list">'+r.players.map(p=>p.n+' '+fmt(p.s)+'元').join(' ｜ ')+'</div></div>'+
+      '<div class="pending-actions"><button class="btn-danger" onclick="delR(\''+r.id+'\')">🗑 刪除</button></div></div>').join('');
+
+    await loadSubAdmins();
+    document.getElementById('subAdminList').innerHTML = subAdmins.length
+      ? subAdmins.map(e=>
+          '<div class="pending-item"><div class="pending-info"><div class="pending-date" style="color:var(--cream)">'+e+'</div></div>'+
+          '<div class="pending-actions"><button class="btn-danger" onclick="removeSubAdmin(\''+e+'\')" >移除</button></div></div>'
+        ).join('')
+      : '<div style="color:rgba(245,237,214,0.35);font-size:0.88rem;padding:0.5rem">尚無副管理員</div>';
+  }
 }
 async function approveR(pendingId,date,players){
   try{
