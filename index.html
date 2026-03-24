@@ -202,10 +202,7 @@ nav{background:rgba(10,30,18,0.92);border-bottom:2px solid var(--gold);padding:0
   <div class="notice">填寫後送出，待管理員審核後公開顯示。</div>
   <div class="card">
     <div class="form-group" style="max-width:220px;margin-bottom:0.5rem"><label class="form-label">日期</label><input class="form-input" type="date" id="f-date"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin:1.5rem 0 1rem;">
-      <div style="font-size:0.88rem;color:var(--gold)">四位參賽者</div>
-      <button class="btn-secondary" style="font-size:0.78rem;padding:0.3rem 0.8rem" onclick="showAddPlayerModal()">＋ 新增玩家</button>
-    </div>
+    <div style="margin:1.5rem 0 1rem;font-size:0.88rem;color:var(--gold)">四位參賽者</div>
     <div id="playerInputs"></div>
     <div style="margin-top:1.5rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
       <button class="btn-primary" onclick="submitRecord()">送出等待審核</button>
@@ -242,20 +239,6 @@ nav{background:rgba(10,30,18,0.92);border-bottom:2px solid var(--gold);padding:0
   </div>
 </div>
 
-<!-- Add Player Modal -->
-<div id="addPlayerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;">
-  <div style="background:#0e2a1a;border:1px solid var(--gold);border-radius:8px;padding:2rem;width:340px;max-width:92vw;">
-    <div style="font-family:Playfair Display,serif;color:var(--gold);font-size:1.2rem;margin-bottom:1.2rem;">新增玩家</div>
-    <div class="form-group">
-      <label class="form-label">玩家名稱</label>
-      <input class="form-input" id="newPlayerName" type="text" placeholder="輸入名字" maxlength="10">
-    </div>
-    <div style="display:flex;gap:0.8rem;justify-content:flex-end;margin-top:1.4rem;">
-      <button class="btn-secondary" onclick="closeAddPlayerModal()">取消</button>
-      <button class="btn-primary" onclick="addNewPlayer()">新增</button>
-    </div>
-  </div>
-</div>
 
 <div class="toast" id="toast"></div>
 <div class="tile-deco">🀇🀙🀡🀄</div>
@@ -536,19 +519,26 @@ function tog(id){document.getElementById('sc-'+id).classList.toggle('open');}
 // ── Submit ──
 function renderForm(){
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
-  const opts=PLAYERS.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
-  document.getElementById('playerInputs').innerHTML=[1,2,3,4].map(i=>
+  const opts=PLAYERS.map(p=>'<option value="'+p+'">').join('');
+  const datalist='<datalist id="playerList">'+opts+'</datalist>';
+  document.getElementById('playerInputs').innerHTML=datalist+[1,2,3,4].map(i=>
     '<div class="player-input-row">'+
-    '<div class="form-group"><label class="form-label">玩家 '+i+'</label><select class="form-select" id="fp-n-'+i+'">'+opts+'</select></div>'+
+    '<div class="form-group"><label class="form-label">玩家 '+i+'（可選或直接打字）</label>'+
+    '<input class="form-input" list="playerList" id="fp-n-'+i+'" placeholder="選擇或輸入名字" autocomplete="off"></div>'+
     '<div class="form-group"><label class="form-label">勝負分</label><input class="form-input" type="number" id="fp-s-'+i+'" value="0"></div>'+
     '<div class="form-group"><label class="form-label">自摸次數</label><input class="form-input" type="number" id="fp-t-'+i+'" value="0" min="0"></div>'+
     '<div class="player-num">'+i+'</div></div>').join('');
-  [0,1,2,3].forEach(i=>document.getElementById('fp-n-'+(i+1)).selectedIndex=i);
+  // Pre-fill first 4 players from list
+  [0,1,2,3].forEach(i=>{
+    const input=document.getElementById('fp-n-'+(i+1));
+    if(input && PLAYERS[i]) input.value=PLAYERS[i];
+  });
 }
 async function submitRecord(){
   const date=document.getElementById('f-date').value;
   if(!date){toast('請填寫日期');return;}
-  const ps=[1,2,3,4].map(i=>({n:document.getElementById('fp-n-'+i).value,s:parseInt(document.getElementById('fp-s-'+i).value)||0,t:parseInt(document.getElementById('fp-t-'+i).value)||0}));
+  const ps=[1,2,3,4].map(i=>({n:(document.getElementById('fp-n-'+i).value||'').trim(),s:parseInt(document.getElementById('fp-s-'+i).value)||0,t:parseInt(document.getElementById('fp-t-'+i).value)||0}));
+  if(ps.some(p=>!p.n)){toast('請填寫所有玩家名稱');return;}
   if(new Set(ps.map(p=>p.n)).size!==4){toast('四位玩家不可重複');return;}
   if(ps.reduce((s,p)=>s+p.s,0)!==0){toast('勝負分總和須為 0');return;}
   try{
