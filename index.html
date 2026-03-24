@@ -202,7 +202,10 @@ nav{background:rgba(10,30,18,0.92);border-bottom:2px solid var(--gold);padding:0
   <div class="notice">填寫後送出，待管理員審核後公開顯示。</div>
   <div class="card">
     <div class="form-group" style="max-width:220px;margin-bottom:0.5rem"><label class="form-label">日期</label><input class="form-input" type="date" id="f-date"></div>
-    <div style="margin:1.5rem 0 1rem;font-size:0.88rem;color:var(--gold)">四位參賽者</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:1.5rem 0 1rem;">
+      <div style="font-size:0.88rem;color:var(--gold)">四位參賽者</div>
+      <button class="btn-secondary" style="font-size:0.78rem;padding:0.3rem 0.8rem" onclick="showAddPlayerModal()">＋ 新增玩家</button>
+    </div>
     <div id="playerInputs"></div>
     <div style="margin-top:1.5rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
       <button class="btn-primary" onclick="submitRecord()">送出等待審核</button>
@@ -239,6 +242,21 @@ nav{background:rgba(10,30,18,0.92);border-bottom:2px solid var(--gold);padding:0
   </div>
 </div>
 
+<!-- Add Player Modal -->
+<div id="addPlayerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#0e2a1a;border:1px solid var(--gold);border-radius:8px;padding:2rem;width:340px;max-width:92vw;">
+    <div style="font-family:Playfair Display,serif;color:var(--gold);font-size:1.2rem;margin-bottom:1.2rem;">新增玩家</div>
+    <div class="form-group">
+      <label class="form-label">玩家名稱</label>
+      <input class="form-input" id="newPlayerName" type="text" placeholder="輸入名字" maxlength="10">
+    </div>
+    <div style="display:flex;gap:0.8rem;justify-content:flex-end;margin-top:1.4rem;">
+      <button class="btn-secondary" onclick="closeAddPlayerModal()">取消</button>
+      <button class="btn-primary" onclick="addNewPlayer()">新增</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <div class="tile-deco">🀇🀙🀡🀄</div>
 
@@ -272,7 +290,7 @@ function isSubAdmin(email){
 function canAccessAdmin(email){
   return email === ADMIN_EMAIL || isSubAdmin(email);
 }
-const PLAYERS = ['楊湛華','林翔','陳廷安','吳致亨','陳威宇','劉其鷹','楊皓淵','陳昀瑋','傅柏文','陳奕廷','朱曼寧','廖冠茗','倪周恩','鄭以湉','郭易非','蔡元傑','其他人'];
+let PLAYERS = ['楊湛華','林翔','陳廷安','吳致亨','陳威宇','劉其鷹','楊皓淵','陳昀瑋','傅柏文','陳奕廷','朱曼寧','廖冠茗','倪周恩','鄭以湉','郭易非','蔡元傑','其他人'];
 
 let allRecords = [];
 let currentUser = null;
@@ -312,6 +330,7 @@ function agg(recs){
 
 // ── Load Records ──
 async function loadRecords(){
+  await loadPlayers();
   const snap = await db.collection('records').orderBy('date','desc').get();
   allRecords = snap.docs.map(d=>({id:d.id,...d.data()}));
   hideLoading();
@@ -346,8 +365,39 @@ async function removeSubAdmin(email){
   await renderAdmin();
 }
 
+// ── Players list ──
+async function loadPlayers(){
+  const snap = await db.collection('players').orderBy('addedAt','asc').get();
+  const extra = snap.docs.map(d=>d.data().name);
+  extra.forEach(n=>{ if(!PLAYERS.includes(n)) PLAYERS.push(n); });
+}
+
+function showAddPlayerModal(){
+  document.getElementById('newPlayerName').value='';
+  document.getElementById('addPlayerModal').style.display='flex';
+  setTimeout(()=>document.getElementById('newPlayerName').focus(),100);
+}
+
+function closeAddPlayerModal(){
+  document.getElementById('addPlayerModal').style.display='none';
+}
+
+async function addNewPlayer(){
+  const name = document.getElementById('newPlayerName').value.trim();
+  if(!name){toast('請輸入名稱');return;}
+  if(PLAYERS.includes(name)){toast('此玩家已在名單中');closeAddPlayerModal();return;}
+  try{
+    await db.collection('players').add({name, addedAt: new Date().toISOString()});
+    PLAYERS.splice(PLAYERS.length-1, 0, name); // insert before 其他人
+    toast('✅ 已新增 '+name);
+    closeAddPlayerModal();
+    renderForm(); // refresh dropdowns
+  }catch(e){toast('新增失敗：'+e.message);}
+}
+
 async function seedIfEmpty(){
   setLoadingText('檢查資料庫…');
+  await loadPlayers();
   const snap = await db.collection('records').limit(1).get();
   if(!snap.empty){ await loadRecords(); return; }
   setLoadingText('首次載入，匯入歷史資料…');
