@@ -405,10 +405,11 @@ auth.onAuthStateChanged(async user=>{
     await loadSubAdmins();
     btn.textContent='登出';
     if(user.photoURL){avatar.src=user.photoURL;avatar.style.display='block';}
-    if(canAccessAdmin(user.email)){
+    await loadSubAdmins();
+    if(user.email==='jtty1234@gmail.com' || subAdmins.includes(user.email)){
       adminTab.style.display='';
       document.getElementById('adminEmail').textContent=user.email;
-      const isMain = user.email===ADMIN_EMAIL;
+      const isMain = user.email==='jtty1234@gmail.com';
       document.getElementById('adminRoleBadge').innerHTML=isMain
         ? '<span style="background:rgba(201,168,76,0.2);border:1px solid var(--gold);color:var(--gold);padding:0.1rem 0.5rem;border-radius:3px;font-size:0.72rem">主管理員</span>'
         : '<span style="background:rgba(93,186,125,0.15);border:1px solid #5dba7d;color:#5dba7d;padding:0.1rem 0.5rem;border-radius:3px;font-size:0.72rem">副管理員</span>';
@@ -558,12 +559,15 @@ async function renderAdmin(){
   const snap=await db.collection('pending').orderBy('createdAt','desc').get();
   const pend=snap.docs.map(d=>({id:d.id,...d.data()}));
   document.getElementById('pendingCount').textContent=pend.length;
+  // Store pending data globally for safe access
+  window._pendingMap = {};
+  pend.forEach(r=>{ window._pendingMap[r.id]=r; });
   document.getElementById('pendingList').innerHTML=pend.length?pend.map(r=>
     '<div class="pending-item"><div class="pending-info">'+
     '<div class="pending-date">📅 '+fd(r.date)+'</div>'+
     '<div class="pending-players-list">'+r.players.map(p=>p.n+' '+fmt(p.s)+'分').join(' ｜ ')+'</div></div>'+
     '<div class="pending-actions">'+
-    '<button class="btn-approve" onclick="approveR(\''+r.id+'\','+JSON.stringify(r.date)+','+JSON.stringify(r.players)+')">✓ 批准</button>'+
+    '<button class="btn-approve" onclick="approveR(\''+r.id+'\')" >✓ 批准</button>'+
     '<button class="btn-danger" onclick="rejectR(\''+r.id+'\')">✗ 拒絕</button>'+
     '</div></div>').join(''):'<div class="empty-state"><div class="empty-icon">✅</div>目前無待審核場次</div>';
 
@@ -588,12 +592,14 @@ async function renderAdmin(){
       : '<div style="color:rgba(245,237,214,0.35);font-size:0.88rem;padding:0.5rem">尚無副管理員</div>';
   }
 }
-async function approveR(pendingId,date,players){
+async function approveR(pendingId){
   try{
-    await db.collection('records').add({date,players,status:'approved',createdAt:new Date().toISOString()});
+    const r = window._pendingMap[pendingId];
+    if(!r){toast('找不到資料，請重新整理');return;}
+    await db.collection('records').add({date:r.date,players:r.players,status:'approved',createdAt:new Date().toISOString()});
     await db.collection('pending').doc(pendingId).delete();
     toast('✅ 已批准');await loadRecords();await renderAdmin();
-  }catch(e){toast('失敗：'+e.message);}
+  }catch(e){toast('失敗：'+e.message);console.error(e);}
 }
 async function rejectR(id){await db.collection('pending').doc(id).delete();toast('已拒絕');await renderAdmin();}
 async function delR(id){if(!confirm('確認刪除？'))return;await db.collection('records').doc(id).delete();toast('已刪除');await loadRecords();await renderAdmin();}
